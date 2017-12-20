@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <div id="msg"></div>
+    <div id="list"></div>
+    <div id="speak"></div>
+    <div id="write" style="display:none;">
+        <input type="text" name="say" id="say">
+        <input type="button" value="发送" id="send">
+    </div>
+</body>
+<script src="https://cdn.bootcss.com/jquery/3.0.0/jquery.min.js"></script>
+<script>
+    var fd, name, send;
+    var socket = new WebSocket('ws://47.91.244.75:8000');
+    var msg = $('#msg');
+    var speak =$('#speak');
+    var list = $('#list');
+    var write = $('#write');
+    var name = window.prompt('请输入你的姓名');
+
+    socket.onopen = function(evt) {
+        var data = {};
+        data.type = 'name';
+        data.name = name;
+        data = JSON.stringify(data);
+        socket.send(data);
+    }
+
+    socket.onmessage = function (evt) {
+        
+        var data = JSON.parse(evt.data);
+        if (data.type == 'msg') {
+            name = data.data;
+            msg.html('欢迎您：'+data.data);
+        } else if (data.type == 'speak') {
+            fd = data.fd;
+            send = data.from;
+            var p = '<p>收到：'+ send +'</p><p>'+ data.data +'</p>';
+            speak.append(p);
+            write.show();
+            $('#send').val('回复消息给 ' + data.from);
+        } else {
+            if (data.data.length == 0) {
+                list.html('暂无其他人在线！');
+            } else {
+                var p = '';
+                for (var i in data.data) {
+                    p += "<p>" + data.data[i].name  + "<input type=\"button\" name=\""+ data.data[i].name +"\" id=\""+ data.data[i].fd +"\" class=\"speak\"  value=\"跟他聊天\" /></p>";
+                }
+                list.html(p);
+            }
+        }
+        
+        
+    }
+
+    $(document).on('click', '.speak', function() {
+        write.show();
+        send = $(this).attr('name');
+        fd = $(this).attr('id');
+        var data = {};
+        data.type = 'msg';
+        data.fd = fd;
+        data.msg = 'hello';
+        data.name = name;
+        $('#send').val('发送消息给 ' + $(this).attr('name'));
+        socket.send(JSON.stringify(data));
+        speak.append('<p>发送给：' + $(this).attr('name') + '</p><p>'+ data.msg +'</p>');
+        $('#say').val('')
+    })
+
+    $('#send').on('click', function() {
+        var data = {};
+        data.type = 'msg';
+        data.fd = fd;
+        data.msg = $('#say').val();
+        data.name = name;
+        socket.send(JSON.stringify(data));
+        speak.append('<p>发送给：' + send + '</p><p>'+ data.msg +'</p>');
+        $('#say').val('');
+    })
+
+</script>
+</html>
